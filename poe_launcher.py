@@ -146,6 +146,9 @@ class PoELauncher:
         
         os.makedirs(config_dir, exist_ok=True)
         self.config_file = os.path.join(config_dir, 'config.json')
+        
+        # Debug: Print config path to help with troubleshooting
+        print(f"Config file path: {self.config_file}")
     
     def create_widgets(self):
         # Main container with padding
@@ -443,6 +446,8 @@ class PoELauncher:
             
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
+            
+            print(f"Settings saved to: {self.config_file}")
                 
         except Exception as e:
             print(f"Error saving settings: {e}")
