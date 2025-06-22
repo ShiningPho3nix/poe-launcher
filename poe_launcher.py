@@ -461,7 +461,9 @@ class PoELauncher:
         """Run a program and return success status"""
         try:
             if os.path.exists(path):
-                subprocess.Popen([path], shell=True)
+                # Set working directory to the program's directory to avoid path issues
+                program_dir = os.path.dirname(path)
+                subprocess.Popen([path], cwd=program_dir, shell=True)
                 return True
         except Exception as e:
             print(f"Error running {path}: {e}")
@@ -470,11 +472,18 @@ class PoELauncher:
     def launch_steam_game(self, steam_path, app_id):
         """Launch Steam game with specific app ID"""
         try:
-            subprocess.Popen([steam_path, f"-applaunch", app_id], shell=True)
+            # Use Steam URL protocol to avoid security warnings
+            steam_url = f"steam://rungameid/{app_id}"
+            webbrowser.open(steam_url)
             return True
         except Exception as e:
             print(f"Error launching Steam game: {e}")
-            return False
+            # Fallback to old method if URL protocol fails
+            try:
+                subprocess.Popen([steam_path, f"-applaunch", app_id], shell=True)
+                return True
+            except:
+                return False
     
     def show_status(self, message):
         """Update status label"""
