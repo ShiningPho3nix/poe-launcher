@@ -19,8 +19,8 @@ class PoELauncher:
         self.setup_variables()
         self.load_translations()
         self.setup_config_path()
-        self.load_settings()
         self.create_widgets()
+        self.load_settings()
         self.update_ui()
         
     def setup_window(self):
@@ -47,23 +47,26 @@ class PoELauncher:
         self.game_version = tk.StringVar(value="steam")
         
         # Paths
-        self.steam_path = tk.StringVar(value="C:\\Program Files (x86)\\Steam\\steam.exe")
-        self.standalone_path = tk.StringVar(value="C:\\Program Files (x86)\\Grinding Gear Games\\Path of Exile\\PathOfExile.exe")
+        self.steam_path = tk.StringVar(value="")
+        self.standalone_path = tk.StringVar(value="")
         
         # Companion programs
-        self.awakened_path = tk.StringVar(value="C:\\Program Files\\Awakened PoE Trade\\Awakened PoE Trade.exe")
-        self.lurker_path = tk.StringVar(value="C:\\Program Files\\PoE Lurker\\Poe Lurker.exe")
-        self.chaos_recipe_path = tk.StringVar(value="C:\\Program Files\\Chaos Recipe Enhancer\\ChaosRecipeEnhancer.exe")
+        self.awakened_path = tk.StringVar(value="")
+        self.lurker_path = tk.StringVar(value="")
+        self.chaos_recipe_path = tk.StringVar(value="")
         
         # Checkboxes
-        self.start_awakened = tk.BooleanVar(value=True)
-        self.start_lurker = tk.BooleanVar(value=True)
+        self.start_awakened = tk.BooleanVar(value=False)
+        self.start_lurker = tk.BooleanVar(value=False)
         self.start_chaos_recipe = tk.BooleanVar(value=False)
         self.open_filterblade = tk.BooleanVar(value=False)
         self.open_trade_site = tk.BooleanVar(value=False)
         
         # Language
         self.language = tk.StringVar(value="en")
+        
+        # Store checkbox references for enabling/disabling
+        self.checkboxes = {}
         
     def load_translations(self):
         self.translations = {
@@ -75,14 +78,15 @@ class PoELauncher:
                 'steam_path': 'Steam Path:',
                 'game_path': 'Game Path:',
                 'companion_programs': 'Companion Programs',
-                'awakened_trade': 'Awakened Trade',
-                'poe_lurker': 'PoE Lurker',
+                'awakened_trade': 'Awakened PoE Trade',
+                'poe_lurker': 'Poe Lurker',
                 'chaos_recipe': 'Chaos Recipe Enhancer',
                 'websites': 'Websites',
                 'filterblade': 'FilterBlade',
                 'trade_site': 'Trade Site',
                 'browse': 'Browse',
-                'launch': 'Launch Path of Exile',
+                'launch': 'Start',
+                'start': 'Start',
                 'language': 'Language:',
                 'launching': 'Launching programs...',
                 'steam_starting': 'Starting Steam... Please wait...',
@@ -99,14 +103,15 @@ class PoELauncher:
                 'steam_path': 'Steam Pfad:',
                 'game_path': 'Spiel Pfad:',
                 'companion_programs': 'Begleitprogramme',
-                'awakened_trade': 'Awakened Trade',
-                'poe_lurker': 'PoE Lurker',
+                'awakened_trade': 'Awakened PoE Trade',
+                'poe_lurker': 'Poe Lurker',
                 'chaos_recipe': 'Chaos Recipe Enhancer',
                 'websites': 'Webseiten',
                 'filterblade': 'FilterBlade',
                 'trade_site': 'Handelsseite',
                 'browse': 'Durchsuchen',
-                'launch': 'Path of Exile starten',
+                'launch': 'Starten',
+                'start': 'Starten',
                 'language': 'Sprache:',
                 'launching': 'Programme werden gestartet...',
                 'steam_starting': 'Steam wird gestartet... Bitte warten...',
@@ -236,7 +241,7 @@ class PoELauncher:
         self.trade_check.pack(side='left')
         
         # Launch Button
-        self.launch_button = tk.Button(main_frame, text=self.t('launch'),
+        self.launch_button = tk.Button(main_frame, text=self.t('start'),
                                       command=self.launch_threaded,
                                       font=('Segoe UI', 14, 'bold'),
                                       fg='white', bg=self.colors['accent'],
@@ -292,18 +297,24 @@ class PoELauncher:
         frame.pack(fill='x', pady=(0, 10))
         
         check = tk.Checkbutton(frame, text=self.t(label_key), variable=check_var,
-                              width=15, anchor='w',
+                              width=15, anchor='w', state='disabled',
                               fg=self.colors['text'], bg=self.colors['bg_light'],
                               selectcolor=self.colors['bg'], activebackground=self.colors['bg_light'])
         check.pack(side='left')
+        
+        # Store checkbox reference for later enabling/disabling
+        self.checkboxes[label_key] = check
         
         entry = tk.Entry(frame, textvariable=path_var,
                         bg=self.colors['bg'], fg=self.colors['text'],
                         insertbackground=self.colors['text'])
         entry.pack(side='left', fill='x', expand=True, padx=(5, 5))
         
+        # Bind path change to validation
+        path_var.trace('w', lambda *args: self.validate_path(label_key, path_var))
+        
         browse_btn = tk.Button(frame, text=self.t('browse'),
-                              command=browse_command,
+                              command=lambda: self.browse_and_validate(path_var, browse_command, label_key),
                               bg=self.colors['button_bg'], fg='white',
                               relief='flat', padx=15)
         browse_btn.pack(side='right')
@@ -351,6 +362,27 @@ class PoELauncher:
         if filename:
             var.set(filename)
     
+    def browse_and_validate(self, path_var, browse_command, label_key):
+        """Browse for file and validate path"""
+        browse_command()
+        self.validate_path(label_key, path_var)
+    
+    def validate_path(self, label_key, path_var):
+        """Validate path and enable/disable corresponding checkbox"""
+        path = path_var.get().strip()
+        if label_key in self.checkboxes:
+            if path and os.path.exists(path):
+                self.checkboxes[label_key].config(state='normal')
+            else:
+                self.checkboxes[label_key].config(state='disabled')
+                # Uncheck if path becomes invalid
+                if label_key == 'awakened_trade':
+                    self.start_awakened.set(False)
+                elif label_key == 'poe_lurker':
+                    self.start_lurker.set(False)
+                elif label_key == 'chaos_recipe':
+                    self.start_chaos_recipe.set(False)
+    
     def load_settings(self):
         """Load settings from config file"""
         try:
@@ -366,16 +398,29 @@ class PoELauncher:
                 self.lurker_path.set(config.get('lurker_path', self.lurker_path.get()))
                 self.chaos_recipe_path.set(config.get('chaos_recipe_path', self.chaos_recipe_path.get()))
                 
-                self.start_awakened.set(config.get('start_awakened', True))
-                self.start_lurker.set(config.get('start_lurker', True))
+                self.start_awakened.set(config.get('start_awakened', False))
+                self.start_lurker.set(config.get('start_lurker', False))
                 self.start_chaos_recipe.set(config.get('start_chaos_recipe', False))
                 self.open_filterblade.set(config.get('open_filterblade', False))
                 self.open_trade_site.set(config.get('open_trade_site', False))
                 
                 self.language.set(config.get('language', self.language.get()))
                 
+                # Validate all paths after loading
+                self.validate_all_paths()
+                
         except Exception as e:
             print(f"Error loading settings: {e}")
+        
+        # Always validate paths even if no config file exists
+        if hasattr(self, 'checkboxes'):
+            self.validate_all_paths()
+    
+    def validate_all_paths(self):
+        """Validate all program paths and update checkbox states"""
+        self.validate_path('awakened_trade', self.awakened_path)
+        self.validate_path('poe_lurker', self.lurker_path)
+        self.validate_path('chaos_recipe', self.chaos_recipe_path)
     
     def save_settings(self):
         """Save settings to config file"""
