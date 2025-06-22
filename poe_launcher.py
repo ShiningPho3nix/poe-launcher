@@ -25,8 +25,9 @@ class PoELauncher:
         
     def setup_window(self):
         self.root.title("Path of Exile Launcher")
-        self.root.geometry("600x700")
-        self.root.resizable(False, False)
+        self.root.geometry("600x750")
+        self.root.resizable(True, True)
+        self.root.minsize(500, 600)
         
         # Dark theme colors
         self.colors = {
@@ -241,7 +242,7 @@ class PoELauncher:
         self.trade_check.pack(side='left')
         
         # Launch Button
-        self.launch_button = tk.Button(main_frame, text=self.t('start'),
+        self.launch_button = tk.Button(main_frame, text=self.t('launch'),
                                       command=self.launch_threaded,
                                       font=('Segoe UI', 14, 'bold'),
                                       fg='white', bg=self.colors['accent'],
