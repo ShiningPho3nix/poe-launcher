@@ -174,17 +174,17 @@ class PoELauncher:
         main_frame.pack(fill='both', expand=True, padx=20, pady=20)
         
         # Title
-        title_label = tk.Label(main_frame, text=self.t('title'), 
-                              font=('Segoe UI', 20, 'bold'),
-                              fg=self.colors['accent'], bg=self.colors['bg'])
-        title_label.pack(pady=(0, 20))
+        self.title_label = tk.Label(main_frame, text=self.t('title'), 
+                                   font=('Segoe UI', 20, 'bold'),
+                                   fg=self.colors['accent'], bg=self.colors['bg'])
+        self.title_label.pack(pady=(0, 20))
         
         # Language selection
         lang_frame = self.create_section_frame(main_frame)
-        lang_title = tk.Label(lang_frame, text=self.t('language'),
-                             font=('Segoe UI', 12, 'bold'),
-                             fg=self.colors['secondary'], bg=self.colors['bg_light'])
-        lang_title.pack(anchor='w', pady=(0, 10))
+        self.lang_title = tk.Label(lang_frame, text=self.t('language'),
+                                  font=('Segoe UI', 12, 'bold'),
+                                  fg=self.colors['secondary'], bg=self.colors['bg_light'])
+        self.lang_title.pack(anchor='w', pady=(0, 10))
         
         lang_combo_frame = tk.Frame(lang_frame, bg=self.colors['bg_light'])
         lang_combo_frame.pack(fill='x')
@@ -203,7 +203,7 @@ class PoELauncher:
         
         # Game Version Section
         game_frame = self.create_section_frame(main_frame)
-        self.create_section_title(game_frame, 'game_version')
+        self.game_version_title = self.create_section_title(game_frame, 'game_version')
         
         # Radio buttons for game version
         radio_frame = tk.Frame(game_frame, bg=self.colors['bg_light'])
@@ -231,7 +231,7 @@ class PoELauncher:
         
         # Companion Programs Section
         companion_frame = self.create_section_frame(main_frame)
-        self.create_section_title(companion_frame, 'companion_programs')
+        self.companion_title = self.create_section_title(companion_frame, 'companion_programs')
         
         # Awakened PoE Trade
         self.create_program_input(companion_frame, 'awakened_trade', self.start_awakened, 
@@ -247,7 +247,7 @@ class PoELauncher:
         
         # Websites Section
         websites_frame = self.create_section_frame(main_frame)
-        self.create_section_title(websites_frame, 'websites')
+        self.websites_title = self.create_section_title(websites_frame, 'websites')
         
         # FilterBlade checkbox
         filterblade_frame = tk.Frame(websites_frame, bg=self.colors['bg_light'])
@@ -351,6 +351,15 @@ class PoELauncher:
                               relief='flat', padx=15)
         browse_btn.pack(side='right')
         
+        # Store references for language updates
+        if not hasattr(self, 'path_labels'):
+            self.path_labels = {}
+        if not hasattr(self, 'browse_buttons'):
+            self.browse_buttons = {}
+            
+        self.path_labels[label_key] = label
+        self.browse_buttons[label_key] = browse_btn
+        
         return frame
     
     def show_info(self, info_key):
@@ -403,9 +412,35 @@ class PoELauncher:
         """Refresh all UI text after language change"""
         self.root.title(self.t('title'))
         
+        # Update main title and language label
+        if hasattr(self, 'title_label'):
+            self.title_label.config(text=self.t('title'))
+        if hasattr(self, 'lang_title'):
+            self.lang_title.config(text=self.t('language'))
+        
+        # Update section titles
+        if hasattr(self, 'game_version_title'):
+            self.game_version_title.config(text=self.t('game_version'))
+        if hasattr(self, 'companion_title'):
+            self.companion_title.config(text=self.t('companion_programs'))
+        if hasattr(self, 'websites_title'):
+            self.websites_title.config(text=self.t('websites'))
+        
+        # Update path labels
+        if hasattr(self, 'path_labels'):
+            for label_key, label in self.path_labels.items():
+                label.config(text=self.t(label_key))
+        
+        # Update browse buttons
+        if hasattr(self, 'browse_buttons'):
+            for button_key, button in self.browse_buttons.items():
+                button.config(text=self.t('browse'))
+        
         # Update radio button texts
-        self.steam_radio.config(text=self.t('steam_version'))
-        self.standalone_radio.config(text=self.t('standalone_version'))
+        if hasattr(self, 'steam_radio'):
+            self.steam_radio.config(text=self.t('steam_version'))
+        if hasattr(self, 'standalone_radio'):
+            self.standalone_radio.config(text=self.t('standalone_version'))
         
         # Update checkbox texts
         if hasattr(self, 'checkboxes'):
