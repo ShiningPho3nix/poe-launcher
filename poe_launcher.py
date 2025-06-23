@@ -78,8 +78,7 @@ class PoELauncher:
         # Store checkbox references for enabling/disabling
         self.checkboxes = {}
         
-        # Store detected Steam PoE path
-        self.steam_poe_path = ""
+        # Steam PoE path detection removed - no longer needed
         
     def load_translations(self):
         self.translations = {
@@ -547,8 +546,7 @@ class PoELauncher:
                 
                 self.language.set(config.get('language', self.language.get()))
                 
-                # Load detected Steam PoE path if available
-                self.steam_poe_path = config.get('steam_poe_path', '')
+                # Steam PoE path loading removed - no longer needed
                 
                 # Validate all paths after loading
                 self.validate_all_paths()
@@ -675,16 +673,15 @@ class PoELauncher:
         drives = self.get_all_drives()
         
         # Only define search patterns - no hardcoded paths
+        # Only search for programs relevant to current game version
+        current_version = getattr(self, 'game_version', None)
+        selected_version = current_version.get() if current_version else 'steam'
+        
         search_locations = {
             'steam': [
                 ('Program Files (x86)', 'Steam', 'steam.exe'),
                 ('Program Files', 'Steam', 'steam.exe'),
                 ('Steam', '', 'steam.exe')
-            ],
-            'poe_standalone': [
-                ('Program Files (x86)', 'Grinding Gear Games', 'Path of Exile', 'PathOfExile.exe'),
-                ('Program Files', 'Grinding Gear Games', 'Path of Exile', 'PathOfExile.exe'),
-                ('Games', 'Path of Exile', '', 'PathOfExile.exe')
             ],
             'awakened_trade': [
                 ('Program Files', 'Awakened PoE Trade', '', 'Awakened PoE Trade.exe'),
@@ -694,10 +691,20 @@ class PoELauncher:
                 ('Program Files (x86)', 'Poe Lurker', '', 'Poe Lurker.exe')
             ],
             'chaos_recipe': [
-                ('Program Files', 'ChaosRecipeEnhancer', '', 'ChaosRecipeEnhancer.exe'),
+                ('Program Files (x86)', 'Chaos Recipe Enhancer', '', 'ChaosRecipeEnhancer.exe'),
+                ('Program Files', 'Chaos Recipe Enhancer', '', 'ChaosRecipeEnhancer.exe'),
                 ('Program Files (x86)', 'ChaosRecipeEnhancer', '', 'ChaosRecipeEnhancer.exe'),
+                ('Program Files', 'ChaosRecipeEnhancer', '', 'ChaosRecipeEnhancer.exe'),
             ]
         }
+        
+        # Add version-specific game detection
+        if selected_version == 'standalone':
+            search_locations['poe_standalone'] = [
+                ('Program Files (x86)', 'Grinding Gear Games', 'Path of Exile', 'PathOfExile.exe'),
+                ('Program Files', 'Grinding Gear Games', 'Path of Exile', 'PathOfExile.exe'),
+                ('Games', 'Path of Exile', '', 'PathOfExile.exe')
+            ]
         
         # Search each drive for each program
         for program, locations in search_locations.items():
@@ -833,10 +840,7 @@ class PoELauncher:
         if 'poe_standalone' in detected and not self.standalone_path.get():
             self.standalone_path.set(self.normalize_path(detected['poe_standalone']))
         
-        # Steam PoE path - store separately, don't put in UI paths
-        if 'poe_steam' in detected:
-            self.steam_poe_path = self.normalize_path(detected['poe_steam'])
-            print(f"Steam PoE found at: {self.steam_poe_path}")
+        # Steam PoE path detection removed - no longer needed
         
         # Companion programs - only set if paths are currently empty
         if 'awakened_trade' in detected and not self.awakened_path.get():
@@ -924,19 +928,7 @@ class PoELauncher:
             detection_results['enhanced'] = {'found': [], 'error': str(e)}
             print(f"Enhanced detection failed: {e}")
         
-        # 4. Steam games detection (if Steam was found)
-        steam_path = detected.get('steam')
-        if steam_path:
-            try:
-                steam_games = self.detect_steam_games(steam_path)
-                for key, value in steam_games.items():
-                    if key not in detected:
-                        detected[key] = value
-                detection_results['steam'] = {'found': list(steam_games.keys()), 'searched': 'Steam Libraries'}
-                print(f"Steam games detection found: {list(steam_games.keys())}")
-            except Exception as e:
-                detection_results['steam'] = {'found': [], 'error': str(e)}
-                print(f"Steam games detection failed: {e}")
+        # Steam game detection removed - only need steam.exe for Steam version
         
         # Apply detected paths to UI (force mode allows overwriting)
         self.apply_detected_paths_force(detected)
@@ -1031,30 +1023,46 @@ class PoELauncher:
         """Show detailed detection results to user"""
         total_found = len(detected)
         
-        # Create detailed message
-        message_lines = [f"Auto-detection completed: {total_found} programs found\n"]
+        # Create detailed message - show only relevant program count
+        relevant_count = len([k for k in detected.keys() if k in {'steam', 'poe_standalone', 'awakened_trade', 'poe_lurker', 'chaos_recipe'}])
+        message_lines = [f"Auto-detection completed: {relevant_count} programs found\n"]
         
-        program_names = {
-            'steam': 'Steam',
-            'poe_standalone': 'Path of Exile (Standalone)',
-            'poe_steam': 'Path of Exile (Steam)',
-            'awakened_trade': 'Awakened PoE Trade',
-            'poe_lurker': 'PoE Lurker',
-            'chaos_recipe': 'Chaos Recipe Enhancer'
-        }
+        # Get current game version to filter relevant programs
+        current_version = getattr(self, 'game_version', None)
+        selected_version = current_version.get() if current_version else 'steam'
+        
+        # Only show programs relevant to selected version
+        if selected_version == 'steam':
+            relevant_programs = {'steam', 'awakened_trade', 'poe_lurker', 'chaos_recipe'}
+            program_names = {
+                'steam': 'Steam',
+                'awakened_trade': 'Awakened PoE Trade',
+                'poe_lurker': 'PoE Lurker',
+                'chaos_recipe': 'Chaos Recipe Enhancer'
+            }
+        else:  # standalone
+            relevant_programs = {'poe_standalone', 'awakened_trade', 'poe_lurker', 'chaos_recipe'}
+            program_names = {
+                'poe_standalone': 'Path of Exile (Standalone)',
+                'awakened_trade': 'Awakened PoE Trade',
+                'poe_lurker': 'PoE Lurker',
+                'chaos_recipe': 'Chaos Recipe Enhancer'
+            }
+        
+        # Filter detected programs to only show relevant ones
+        relevant_detected = {k: v for k, v in detected.items() if k in relevant_programs}
         
         # Show what was found
-        if detected:
+        if relevant_detected:
             message_lines.append("✅ FOUND:")
-            for key, path in detected.items():
+            for key, path in relevant_detected.items():
                 program_name = program_names.get(key, key)
                 short_path = path if len(path) < 50 else f"...{path[-47:]}"
                 message_lines.append(f"  • {program_name}: {short_path}")
             message_lines.append("")
         
-        # Show what wasn't found with suggestions
-        all_programs = set(program_names.keys())
-        not_found = all_programs - set(detected.keys())
+        # Show what wasn't found with suggestions (only relevant programs)
+        not_found = relevant_programs - set(relevant_detected.keys())
         
         if not_found:
             message_lines.append("❌ NOT FOUND:")
@@ -1100,10 +1108,7 @@ class PoELauncher:
         if 'poe_standalone' in detected:
             self.standalone_path.set(self.normalize_path(detected['poe_standalone']))
         
-        # Steam PoE path - store separately
-        if 'poe_steam' in detected:
-            self.steam_poe_path = self.normalize_path(detected['poe_steam'])
-            print(f"Steam PoE found at: {self.steam_poe_path}")
+        # Steam PoE path detection removed - no longer needed
         
         # Companion programs
         if 'awakened_trade' in detected:
@@ -1155,8 +1160,7 @@ class PoELauncher:
                 'start_chaos_recipe': self.start_chaos_recipe.get(),
                 'open_filterblade': self.open_filterblade.get(),
                 'open_trade_site': self.open_trade_site.get(),
-                'language': self.language.get(),
-                'steam_poe_path': getattr(self, 'steam_poe_path', '')
+                'language': self.language.get()
             }
             
             with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -1231,15 +1235,7 @@ class PoELauncher:
         if version == 'steam':
             steam_path = self.steam_path.get()
             
-            # Check if we have a detected Steam PoE executable
-            if hasattr(self, 'steam_poe_path') and self.steam_poe_path and os.path.exists(self.steam_poe_path):
-                # Launch PoE directly from Steam library
-                if self.run_program(self.steam_poe_path):
-                    launched.append("Path of Exile (Steam)")
-                else:
-                    errors.append(self.t('file_not_found').format("Path of Exile", self.steam_poe_path))
-            elif steam_path and os.path.exists(steam_path):
-                # Fallback to Steam URL protocol launch
+            if steam_path and os.path.exists(steam_path):
                 # Check if Steam is running
                 if not self.is_process_running("steam.exe"):
                     self.run_program(steam_path)
