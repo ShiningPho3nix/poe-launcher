@@ -37,9 +37,10 @@ The biggest update yet! The launcher now automatically finds your installed prog
 **Real Installation Support**
 - Awakened PoE Trade: `C:\Program Files\Awakened PoE Trade\`
 - PoE Lurker: `%LOCALAPPDATA%\PoeLurker\current\`
+- Chaos Recipe Enhancer: `C:\Program Files (x86)\Chaos Recipe Enhancer\`
 - Custom drive installations (D:\Games\, E:\Steam\, etc.)
-- Steam PoE: Direct executable launch from Steam library folders
-- Standalone PoE: Traditional executable detection
+- Steam: Simplified detection using steam.exe only
+- Standalone PoE: Version-specific detection when selected
 
 **Cross-Platform Compatibility**
 - Graceful fallback on non-Windows systems
@@ -61,7 +62,10 @@ The biggest update yet! The launcher now automatically finds your installed prog
 ### Manual Detection
 1. Click "Auto-Detect Programs" button anytime
 2. Status shows "Detecting installed programs..."
-3. Results display: "Auto-detection complete: X programs found"
+3. Detailed results dialog shows:
+   - ✅ Found programs with their file paths
+   - ❌ Missing programs with specific suggestions
+   - 🔍 Searched locations (Registry, Program Files, etc.)
 4. Paths update automatically
 
 ### Smart Behavior
@@ -98,19 +102,32 @@ Download the latest release and run - auto-detection will handle the rest!
 
 ## 🐛 Bug Fixes & Improvements
 
-**🎮 Steam Version Launch Fix**
-- Steam version now launches Path of Exile executable directly from Steam library
-- Dual detection: finds both steam.exe and PathOfExile.exe in Steam installations
-- Faster and more reliable game startup (no Steam protocol overhead)
-- Smart fallback to Steam URL protocol if direct executable not available
+**🎮 Steam Version Simplified**
+- Steam version uses standard Steam protocol for reliable game launching
+- Only requires steam.exe detection (no complex game executable detection)
+- Faster and more reliable startup with Steam's built-in game management
 - Supports custom Steam library locations automatically
 
-**🔧 General Improvements**
-- Enhanced path validation for companion programs
-- Improved error handling during program launches
-- Better status messaging throughout the interface
-- Optimized startup performance
-- Persistent storage of detected Steam PoE path
+**🔧 UI & UX Improvements**
+- **Larger Window**: Increased default height from 750px to 800px for better button visibility
+- **Info Icons**: Added ℹ buttons next to Steam/Game paths explaining their purpose
+- **Complete Language Switching**: All UI elements now update when changing EN ↔ DE
+- **Fixed Label Truncation**: Program names no longer cut off by input fields
+- **Consistent Path Display**: All paths use Windows backslashes (\) format
+
+**🎯 Enhanced Auto-Detection**
+- **Version-Specific Detection**: Only searches for programs relevant to selected version
+- **Improved CRE Detection**: Properly finds Chaos Recipe Enhancer in Program Files (x86)
+- **Detailed User Feedback**: Comprehensive results dialog showing what was found/missing
+- **Enhanced Search Methods**: Desktop, Downloads, portable app location scanning
+- **False Positive Prevention**: Removed unreliable process detection
+- **Actionable Suggestions**: Specific tips for finding missing programs
+
+**🛠 Technical Fixes**
+- Fixed path separator inconsistencies (C:/ vs C:\)
+- Removed hardcoded paths for better detection accuracy
+- Enhanced error handling during program launches
+- Improved startup performance and reliability
 
 ## 🚀 Coming Soon
 
