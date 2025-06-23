@@ -549,71 +549,86 @@ class PoELauncher:
         return drives
     
     def detect_from_filesystem(self):
-        """Detect programs using filesystem patterns"""
+        """Detect programs using filesystem patterns - only if registry detection failed"""
         detected = {}
+        
+        # Skip filesystem detection on non-Windows platforms
+        if os.name != 'nt':
+            return detected
+            
         drives = self.get_all_drives()
         
-        # Detection patterns based on real user data
-        detection_patterns = {
+        # Only define search patterns - no hardcoded paths
+        search_locations = {
             'steam': [
-                r"{drive}Program Files (x86)\Steam\steam.exe",
-                r"{drive}Program Files\Steam\steam.exe",
-                r"{drive}Steam\steam.exe"
+                ('Program Files (x86)', 'Steam', 'steam.exe'),
+                ('Program Files', 'Steam', 'steam.exe'),
+                ('Steam', '', 'steam.exe')
             ],
             'poe_standalone': [
-                r"{drive}Program Files (x86)\Grinding Gear Games\Path of Exile\PathOfExile.exe",
-                r"{drive}Program Files\Grinding Gear Games\Path of Exile\PathOfExile.exe",
-                r"{drive}Games\Path of Exile\PathOfExile.exe"
+                ('Program Files (x86)', 'Grinding Gear Games', 'Path of Exile', 'PathOfExile.exe'),
+                ('Program Files', 'Grinding Gear Games', 'Path of Exile', 'PathOfExile.exe'),
+                ('Games', 'Path of Exile', '', 'PathOfExile.exe')
             ],
             'awakened_trade': [
-                r"{drive}Program Files\Awakened PoE Trade\Awakened PoE Trade.exe",
-                r"{localappdata}\Programs\Awakened PoE Trade\Awakened PoE Trade.exe"
+                ('Program Files', 'Awakened PoE Trade', '', 'Awakened PoE Trade.exe'),
             ],
             'poe_lurker': [
-                r"{localappdata}\PoeLurker\current\PoeLurker.exe",
-                r"{drive}Program Files\Poe Lurker\Poe Lurker.exe",
-                r"{drive}Program Files (x86)\Poe Lurker\Poe Lurker.exe"
+                ('Program Files', 'Poe Lurker', '', 'Poe Lurker.exe'),
+                ('Program Files (x86)', 'Poe Lurker', '', 'Poe Lurker.exe')
             ],
             'chaos_recipe': [
-                r"{drive}Program Files\ChaosRecipeEnhancer\ChaosRecipeEnhancer.exe",
-                r"{drive}Program Files (x86)\ChaosRecipeEnhancer\ChaosRecipeEnhancer.exe",
-                r"{localappdata}\Programs\ChaosRecipeEnhancer\ChaosRecipeEnhancer.exe"
+                ('Program Files', 'ChaosRecipeEnhancer', '', 'ChaosRecipeEnhancer.exe'),
+                ('Program Files (x86)', 'ChaosRecipeEnhancer', '', 'ChaosRecipeEnhancer.exe'),
             ]
         }
         
-        # Expand environment variables
-        localappdata = os.path.expandvars('%LOCALAPPDATA%')
-        
-        for program, patterns in detection_patterns.items():
+        # Search each drive for each program
+        for program, locations in search_locations.items():
             if program in detected:
                 continue
                 
-            for pattern in patterns:
-                # Handle LocalAppData patterns
-                if '{localappdata}' in pattern:
-                    path = pattern.format(localappdata=localappdata)
-                    if os.path.exists(path):
-                        detected[program] = path
+            for drive in drives:
+                for location_parts in locations:
+                    # Build path using os.path.join for correct separators
+                    path_parts = [drive] + [part for part in location_parts[:-1] if part] + [location_parts[-1]]
+                    full_path = os.path.join(*path_parts)
+                    
+                    if os.path.exists(full_path):
+                        detected[program] = full_path
                         break
-                else:
-                    # Try pattern on each drive
-                    for drive in drives:
-                        path = pattern.format(drive=drive)
-                        if os.path.exists(path):
-                            detected[program] = path
-                            break
-                    if program in detected:
-                        break
+                        
+                if program in detected:
+                    break
         
-        # Special handling for PoE Lurker with wildcard version folders
-        if 'poe_lurker' not in detected:
-            lurker_base = os.path.join(localappdata, 'PoeLurker')
-            if os.path.exists(lurker_base):
-                for item in os.listdir(lurker_base):
-                    lurker_path = os.path.join(lurker_base, item, 'PoeLurker.exe')
-                    if os.path.exists(lurker_path):
-                        detected['poe_lurker'] = lurker_path
-                        break
+        # Special handling for AppData programs
+        try:
+            localappdata = os.path.expandvars('%LOCALAPPDATA%')
+            
+            # Awakened PoE Trade in AppData
+            if 'awakened_trade' not in detected:
+                appdata_awakened = os.path.join(localappdata, 'Programs', 'Awakened PoE Trade', 'Awakened PoE Trade.exe')
+                if os.path.exists(appdata_awakened):
+                    detected['awakened_trade'] = appdata_awakened
+            
+            # PoE Lurker with wildcard version folders
+            if 'poe_lurker' not in detected:
+                lurker_base = os.path.join(localappdata, 'PoeLurker')
+                if os.path.exists(lurker_base):
+                    for item in os.listdir(lurker_base):
+                        lurker_path = os.path.join(lurker_base, item, 'PoeLurker.exe')
+                        if os.path.exists(lurker_path):
+                            detected['poe_lurker'] = lurker_path
+                            break
+            
+            # Chaos Recipe Enhancer in AppData
+            if 'chaos_recipe' not in detected:
+                appdata_chaos = os.path.join(localappdata, 'Programs', 'ChaosRecipeEnhancer', 'ChaosRecipeEnhancer.exe')
+                if os.path.exists(appdata_chaos):
+                    detected['chaos_recipe'] = appdata_chaos
+                    
+        except Exception as e:
+            print(f"Error checking AppData locations: {e}")
         
         return detected
     
@@ -694,29 +709,27 @@ class PoELauncher:
     
     def apply_detected_paths(self, detected):
         """Apply detected paths to the UI variables"""
-        # Steam path - keep for ensuring Steam is running
-        if 'steam' in detected:
+        # Steam executable - only set if no Steam path currently set
+        if 'steam' in detected and not self.steam_path.get():
             self.steam_path.set(detected['steam'])
         
-        # Standalone PoE path
-        if 'poe_standalone' in detected:
+        # Standalone PoE path - only set if no standalone path currently set
+        if 'poe_standalone' in detected and not self.standalone_path.get():
             self.standalone_path.set(detected['poe_standalone'])
         
-        # Steam PoE path - use for Steam version game path
+        # Steam PoE path - store separately, don't put in UI paths
         if 'poe_steam' in detected:
-            # If we found Steam PoE, set it as the Steam path for game launching
-            # We'll modify the launch logic to use this directly
             self.steam_poe_path = detected['poe_steam']
             print(f"Steam PoE found at: {self.steam_poe_path}")
         
-        # Companion programs
-        if 'awakened_trade' in detected:
+        # Companion programs - only set if paths are currently empty
+        if 'awakened_trade' in detected and not self.awakened_path.get():
             self.awakened_path.set(detected['awakened_trade'])
         
-        if 'poe_lurker' in detected:
+        if 'poe_lurker' in detected and not self.lurker_path.get():
             self.lurker_path.set(detected['poe_lurker'])
         
-        if 'chaos_recipe' in detected:
+        if 'chaos_recipe' in detected and not self.chaos_recipe_path.get():
             self.chaos_recipe_path.set(detected['chaos_recipe'])
         
         # Validate all paths after setting them
@@ -727,14 +740,14 @@ class PoELauncher:
     def auto_detect_threaded(self):
         """Run auto-detection in a separate thread to avoid blocking UI"""
         self.show_status("Detecting installed programs...")
-        thread = threading.Thread(target=self.run_auto_detect)
+        thread = threading.Thread(target=self.run_auto_detect_manual)
         thread.daemon = True
         thread.start()
     
-    def run_auto_detect(self):
-        """Run auto-detection and update status"""
+    def run_auto_detect_manual(self):
+        """Run manual auto-detection and update status - forces re-detection"""
         try:
-            detected = self.auto_detect_installations()
+            detected = self.auto_detect_installations_force()
             count = len(detected)
             if count > 0:
                 self.show_status(f"Auto-detection complete: {count} programs found")
@@ -753,6 +766,77 @@ class PoELauncher:
         except Exception as e:
             self.show_status(f"Auto-detection failed: {str(e)}")
             print(f"Auto-detection error: {e}")
+    
+    def auto_detect_installations_force(self):
+        """Force auto-detection regardless of current paths"""
+        print("Starting forced auto-detection of installations...")
+        detected = {}
+        
+        # 1. Registry detection (fastest)
+        try:
+            registry_detected = self.detect_from_registry()
+            detected.update(registry_detected)
+            print(f"Registry detection found: {list(registry_detected.keys())}")
+        except Exception as e:
+            print(f"Registry detection failed: {e}")
+        
+        # 2. Filesystem pattern detection
+        try:
+            filesystem_detected = self.detect_from_filesystem()
+            # Only add if not already detected
+            for key, value in filesystem_detected.items():
+                if key not in detected:
+                    detected[key] = value
+            print(f"Filesystem detection found: {list(filesystem_detected.keys())}")
+        except Exception as e:
+            print(f"Filesystem detection failed: {e}")
+        
+        # 3. Steam games detection (if Steam was found)
+        steam_path = detected.get('steam')
+        if steam_path:
+            try:
+                steam_games = self.detect_steam_games(steam_path)
+                for key, value in steam_games.items():
+                    if key not in detected:
+                        detected[key] = value
+                print(f"Steam games detection found: {list(steam_games.keys())}")
+            except Exception as e:
+                print(f"Steam games detection failed: {e}")
+        
+        # Apply detected paths to UI (force mode allows overwriting)
+        self.apply_detected_paths_force(detected)
+        
+        return detected
+    
+    def apply_detected_paths_force(self, detected):
+        """Apply detected paths to the UI variables - force mode overwrites existing"""
+        # Steam executable
+        if 'steam' in detected:
+            self.steam_path.set(detected['steam'])
+        
+        # Standalone PoE path
+        if 'poe_standalone' in detected:
+            self.standalone_path.set(detected['poe_standalone'])
+        
+        # Steam PoE path - store separately
+        if 'poe_steam' in detected:
+            self.steam_poe_path = detected['poe_steam']
+            print(f"Steam PoE found at: {self.steam_poe_path}")
+        
+        # Companion programs
+        if 'awakened_trade' in detected:
+            self.awakened_path.set(detected['awakened_trade'])
+        
+        if 'poe_lurker' in detected:
+            self.lurker_path.set(detected['poe_lurker'])
+        
+        if 'chaos_recipe' in detected:
+            self.chaos_recipe_path.set(detected['chaos_recipe'])
+        
+        # Validate all paths after setting them
+        self.validate_all_paths()
+        
+        print(f"Applied detected paths (force): {len(detected)} programs found")
     
     def auto_detect_on_startup(self):
         """Run auto-detection on startup only if paths are missing"""
