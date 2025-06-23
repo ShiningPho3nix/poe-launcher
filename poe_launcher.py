@@ -918,7 +918,7 @@ class PoELauncher:
             for key, value in enhanced_detected.items():
                 if key not in detected:
                     detected[key] = value
-            detection_results['enhanced'] = {'found': list(enhanced_detected.keys()), 'searched': 'Desktop, Downloads, Processes'}
+            detection_results['enhanced'] = {'found': list(enhanced_detected.keys()), 'searched': 'Desktop, Downloads, Portable Apps'}
             print(f"Enhanced detection found: {list(enhanced_detected.keys())}")
         except Exception as e:
             detection_results['enhanced'] = {'found': [], 'error': str(e)}
@@ -953,37 +953,7 @@ class PoELauncher:
         if os.name != 'nt':
             return detected
         
-        # 1. Process-based detection (if programs are running)
-        try:
-            for proc in psutil.process_iter(['name', 'exe']):
-                try:
-                    proc_name = proc.info['name']
-                    if proc_name and proc.info['exe']:
-                        exe_path = proc.info['exe']
-                        
-                        # Check for Chaos Recipe Enhancer variations
-                        if any(name in proc_name.lower() for name in ['chaosrecipe', 'chaos-recipe', 'cre']):
-                            if 'chaos_recipe' not in detected and os.path.exists(exe_path):
-                                detected['chaos_recipe'] = exe_path
-                                print(f"Found running Chaos Recipe Enhancer: {exe_path}")
-                        
-                        # Check for other programs
-                        if 'awakened' in proc_name.lower() and 'poe' in proc_name.lower():
-                            if 'awakened_trade' not in detected and os.path.exists(exe_path):
-                                detected['awakened_trade'] = exe_path
-                                print(f"Found running Awakened PoE Trade: {exe_path}")
-                        
-                        if 'lurker' in proc_name.lower():
-                            if 'poe_lurker' not in detected and os.path.exists(exe_path):
-                                detected['poe_lurker'] = exe_path
-                                print(f"Found running PoE Lurker: {exe_path}")
-                                
-                except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
-                    continue
-        except Exception as e:
-            print(f"Process detection failed: {e}")
-        
-        # 2. Desktop and Downloads folder detection
+        # 1. Desktop and Downloads folder detection
         try:
             search_folders = [
                 os.path.expanduser('~\\Desktop'),
@@ -1023,7 +993,7 @@ class PoELauncher:
         except Exception as e:
             print(f"Folder detection failed: {e}")
         
-        # 3. Alternative executable names for CRE
+        # 2. Alternative executable names for CRE
         if 'chaos_recipe' not in detected:
             alternative_names = [
                 'ChaosRecipeEnhancer.exe',
@@ -1095,8 +1065,9 @@ class PoELauncher:
             message_lines.append("\n💡 SUGGESTIONS FOR MISSING PROGRAMS:")
             message_lines.append("  • Manually browse to select the executable")
             message_lines.append("  • Make sure programs are installed")
-            message_lines.append("  • Try running the programs first, then auto-detect")
             message_lines.append("  • Check Downloads folder for portable versions")
+            message_lines.append("  • Look in Desktop or Documents folders")
+            message_lines.append("  • For CRE: Try different executable names (CRE.exe, etc.)")
         
         # Show search details
         message_lines.append(f"\n🔍 SEARCHED LOCATIONS:")
