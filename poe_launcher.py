@@ -34,9 +34,9 @@ class PoELauncher:
         
     def setup_window(self):
         self.root.title("Path of Exile Launcher")
-        self.root.geometry("600x750")
+        self.root.geometry("600x800")
         self.root.resizable(True, True)
-        self.root.minsize(500, 600)
+        self.root.minsize(500, 650)
         
         # Dark theme colors
         self.colors = {
@@ -102,6 +102,8 @@ class PoELauncher:
                 'start': 'Start',
                 'language': 'Language:',
                 'auto_detect': 'Auto-Detect Programs',
+                'steam_path_info': 'Path to Steam executable (steam.exe)\n\nThis is used to start Steam if it\'s not already running.\nThe actual Path of Exile game will be launched automatically\nfrom your Steam library.',
+                'game_path_info': 'Path to standalone Path of Exile executable\n(PathOfExile.exe)\n\nThis is the direct game executable for the\nstandalone (non-Steam) version of Path of Exile.',
                 'launching': 'Launching programs...',
                 'steam_starting': 'Starting Steam... Please wait...',
                 'launched_successfully': 'Successfully launched: {}',
@@ -128,6 +130,8 @@ class PoELauncher:
                 'start': 'Starten',
                 'language': 'Sprache:',
                 'auto_detect': 'Programme Automatisch Erkennen',
+                'steam_path_info': 'Pfad zur Steam-Anwendung (steam.exe)\n\nWird verwendet, um Steam zu starten, falls es noch nicht läuft.\nDas eigentliche Path of Exile Spiel wird automatisch\naus Ihrer Steam-Bibliothek gestartet.',
+                'game_path_info': 'Pfad zur eigenständigen Path of Exile Anwendung\n(PathOfExile.exe)\n\nDies ist die direkte Spiel-Anwendung für die\neigenständige (Nicht-Steam) Version von Path of Exile.',
                 'launching': 'Programme werden gestartet...',
                 'steam_starting': 'Steam wird gestartet... Bitte warten...',
                 'launched_successfully': 'Erfolgreich gestartet: {}',
@@ -219,11 +223,11 @@ class PoELauncher:
                                               selectcolor=self.colors['bg'], activebackground=self.colors['bg_light'])
         self.standalone_radio.pack(side='left')
         
-        # Steam path
-        self.steam_path_frame = self.create_path_input(game_frame, 'steam_path', self.steam_path, self.browse_steam_path)
+        # Steam path with info icon
+        self.steam_path_frame = self.create_path_input_with_info(game_frame, 'steam_path', self.steam_path, self.browse_steam_path, 'steam_path_info')
         
-        # Standalone path
-        self.standalone_path_frame = self.create_path_input(game_frame, 'game_path', self.standalone_path, self.browse_standalone_path)
+        # Standalone path with info icon
+        self.standalone_path_frame = self.create_path_input_with_info(game_frame, 'game_path', self.standalone_path, self.browse_standalone_path, 'game_path_info')
         
         # Companion Programs Section
         companion_frame = self.create_section_frame(main_frame)
@@ -316,6 +320,43 @@ class PoELauncher:
         browse_btn.pack(side='right')
         
         return frame
+    
+    def create_path_input_with_info(self, parent, label_key, path_var, browse_command, info_key):
+        frame = tk.Frame(parent, bg=self.colors['bg_light'])
+        frame.pack(fill='x', pady=(0, 10))
+        
+        # Label with info icon
+        label_frame = tk.Frame(frame, bg=self.colors['bg_light'])
+        label_frame.pack(side='left')
+        
+        label = tk.Label(label_frame, text=self.t(label_key), width=12,
+                        fg=self.colors['text'], bg=self.colors['bg_light'])
+        label.pack(side='left')
+        
+        # Info icon button
+        info_btn = tk.Button(label_frame, text="ℹ", font=('Segoe UI', 8), width=2,
+                            command=lambda: self.show_info(info_key),
+                            bg=self.colors['secondary'], fg='white',
+                            relief='flat', pady=0)
+        info_btn.pack(side='left', padx=(2, 0))
+        
+        entry = tk.Entry(frame, textvariable=path_var,
+                        bg=self.colors['bg'], fg=self.colors['text'],
+                        insertbackground=self.colors['text'])
+        entry.pack(side='left', fill='x', expand=True, padx=(5, 5))
+        
+        browse_btn = tk.Button(frame, text=self.t('browse'),
+                              command=browse_command,
+                              bg=self.colors['button_bg'], fg='white',
+                              relief='flat', padx=15)
+        browse_btn.pack(side='right')
+        
+        return frame
+    
+    def show_info(self, info_key):
+        """Show info dialog for path fields"""
+        info_text = self.t(info_key)
+        messagebox.showinfo("Information", info_text)
     
     def create_program_input(self, parent, label_key, check_var, path_var, browse_command):
         frame = tk.Frame(parent, bg=self.colors['bg_light'])
