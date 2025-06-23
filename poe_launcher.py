@@ -191,11 +191,11 @@ class PoELauncher:
         self.lang_combo.bind('<<ComboboxSelected>>', self.on_language_change)
         
         # Auto-detect button
-        auto_detect_btn = tk.Button(lang_combo_frame, text=self.t('auto_detect'),
-                                   command=self.auto_detect_threaded,
-                                   bg=self.colors['secondary'], fg='white',
-                                   relief='flat', padx=15)
-        auto_detect_btn.pack(side='right')
+        self.auto_detect_btn = tk.Button(lang_combo_frame, text=self.t('auto_detect'),
+                                        command=self.auto_detect_threaded,
+                                        bg=self.colors['secondary'], fg='white',
+                                        relief='flat', padx=15)
+        self.auto_detect_btn.pack(side='right')
         
         # Game Version Section
         game_frame = self.create_section_frame(main_frame)
@@ -361,8 +361,35 @@ class PoELauncher:
     def refresh_ui_text(self):
         """Refresh all UI text after language change"""
         self.root.title(self.t('title'))
-        # Note: In a full implementation, you'd update all text elements here
-        # For now, restart is recommended for complete language change
+        
+        # Update radio button texts
+        self.steam_radio.config(text=self.t('steam_version'))
+        self.standalone_radio.config(text=self.t('standalone_version'))
+        
+        # Update checkbox texts
+        if hasattr(self, 'checkboxes'):
+            if 'awakened_trade' in self.checkboxes:
+                self.checkboxes['awakened_trade'].config(text=self.t('awakened_trade'))
+            if 'poe_lurker' in self.checkboxes:
+                self.checkboxes['poe_lurker'].config(text=self.t('poe_lurker'))
+            if 'chaos_recipe' in self.checkboxes:
+                self.checkboxes['chaos_recipe'].config(text=self.t('chaos_recipe'))
+        
+        # Update website checkboxes
+        if hasattr(self, 'filterblade_check'):
+            self.filterblade_check.config(text=self.t('filterblade'))
+        if hasattr(self, 'trade_check'):
+            self.trade_check.config(text=self.t('trade_site'))
+        
+        # Update launch button
+        if hasattr(self, 'launch_button'):
+            self.launch_button.config(text=self.t('launch'))
+        
+        # Update auto-detect button
+        if hasattr(self, 'auto_detect_btn'):
+            self.auto_detect_btn.config(text=self.t('auto_detect'))
+        
+        print(f"UI language changed to: {self.language.get()}")
     
     def browse_steam_path(self):
         self.browse_file(self.steam_path, "Steam executable (steam.exe)")
@@ -711,26 +738,26 @@ class PoELauncher:
         """Apply detected paths to the UI variables"""
         # Steam executable - only set if no Steam path currently set
         if 'steam' in detected and not self.steam_path.get():
-            self.steam_path.set(detected['steam'])
+            self.steam_path.set(self.normalize_path(detected['steam']))
         
         # Standalone PoE path - only set if no standalone path currently set
         if 'poe_standalone' in detected and not self.standalone_path.get():
-            self.standalone_path.set(detected['poe_standalone'])
+            self.standalone_path.set(self.normalize_path(detected['poe_standalone']))
         
         # Steam PoE path - store separately, don't put in UI paths
         if 'poe_steam' in detected:
-            self.steam_poe_path = detected['poe_steam']
+            self.steam_poe_path = self.normalize_path(detected['poe_steam'])
             print(f"Steam PoE found at: {self.steam_poe_path}")
         
         # Companion programs - only set if paths are currently empty
         if 'awakened_trade' in detected and not self.awakened_path.get():
-            self.awakened_path.set(detected['awakened_trade'])
+            self.awakened_path.set(self.normalize_path(detected['awakened_trade']))
         
         if 'poe_lurker' in detected and not self.lurker_path.get():
-            self.lurker_path.set(detected['poe_lurker'])
+            self.lurker_path.set(self.normalize_path(detected['poe_lurker']))
         
         if 'chaos_recipe' in detected and not self.chaos_recipe_path.get():
-            self.chaos_recipe_path.set(detected['chaos_recipe'])
+            self.chaos_recipe_path.set(self.normalize_path(detected['chaos_recipe']))
         
         # Validate all paths after setting them
         self.validate_all_paths()
@@ -808,30 +835,37 @@ class PoELauncher:
         
         return detected
     
+    def normalize_path(self, path):
+        """Normalize path to use consistent Windows backslashes"""
+        if not path:
+            return path
+        # Convert forward slashes to backslashes and normalize
+        return os.path.normpath(path.replace('/', '\\'))
+    
     def apply_detected_paths_force(self, detected):
         """Apply detected paths to the UI variables - force mode overwrites existing"""
         # Steam executable
         if 'steam' in detected:
-            self.steam_path.set(detected['steam'])
+            self.steam_path.set(self.normalize_path(detected['steam']))
         
         # Standalone PoE path
         if 'poe_standalone' in detected:
-            self.standalone_path.set(detected['poe_standalone'])
+            self.standalone_path.set(self.normalize_path(detected['poe_standalone']))
         
         # Steam PoE path - store separately
         if 'poe_steam' in detected:
-            self.steam_poe_path = detected['poe_steam']
+            self.steam_poe_path = self.normalize_path(detected['poe_steam'])
             print(f"Steam PoE found at: {self.steam_poe_path}")
         
         # Companion programs
         if 'awakened_trade' in detected:
-            self.awakened_path.set(detected['awakened_trade'])
+            self.awakened_path.set(self.normalize_path(detected['awakened_trade']))
         
         if 'poe_lurker' in detected:
-            self.lurker_path.set(detected['poe_lurker'])
+            self.lurker_path.set(self.normalize_path(detected['poe_lurker']))
         
         if 'chaos_recipe' in detected:
-            self.chaos_recipe_path.set(detected['chaos_recipe'])
+            self.chaos_recipe_path.set(self.normalize_path(detected['chaos_recipe']))
         
         # Validate all paths after setting them
         self.validate_all_paths()
