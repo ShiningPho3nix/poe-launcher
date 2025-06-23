@@ -38,7 +38,8 @@ The biggest update yet! The launcher now automatically finds your installed prog
 - Awakened PoE Trade: `C:\Program Files\Awakened PoE Trade\`
 - PoE Lurker: `%LOCALAPPDATA%\PoeLurker\current\`
 - Custom drive installations (D:\Games\, E:\Steam\, etc.)
-- Both Steam and standalone Path of Exile versions
+- Steam PoE: Direct executable launch from Steam library folders
+- Standalone PoE: Traditional executable detection
 
 **Cross-Platform Compatibility**
 - Graceful fallback on non-Windows systems
@@ -97,10 +98,19 @@ Download the latest release and run - auto-detection will handle the rest!
 
 ## 🐛 Bug Fixes & Improvements
 
+**🎮 Steam Version Launch Fix**
+- Steam version now launches Path of Exile executable directly from Steam library
+- Dual detection: finds both steam.exe and PathOfExile.exe in Steam installations
+- Faster and more reliable game startup (no Steam protocol overhead)
+- Smart fallback to Steam URL protocol if direct executable not available
+- Supports custom Steam library locations automatically
+
+**🔧 General Improvements**
 - Enhanced path validation for companion programs
 - Improved error handling during program launches
 - Better status messaging throughout the interface
 - Optimized startup performance
+- Persistent storage of detected Steam PoE path
 
 ## 🚀 Coming Soon
 
