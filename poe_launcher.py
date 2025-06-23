@@ -887,13 +887,16 @@ class PoELauncher:
         """Force auto-detection regardless of current paths"""
         print("Starting forced auto-detection of installations...")
         detected = {}
+        detection_results = {}
         
         # 1. Registry detection (fastest)
         try:
             registry_detected = self.detect_from_registry()
             detected.update(registry_detected)
+            detection_results['registry'] = {'found': list(registry_detected.keys()), 'searched': 'Windows Registry'}
             print(f"Registry detection found: {list(registry_detected.keys())}")
         except Exception as e:
+            detection_results['registry'] = {'found': [], 'error': str(e)}
             print(f"Registry detection failed: {e}")
         
         # 2. Filesystem pattern detection
@@ -903,11 +906,25 @@ class PoELauncher:
             for key, value in filesystem_detected.items():
                 if key not in detected:
                     detected[key] = value
+            detection_results['filesystem'] = {'found': list(filesystem_detected.keys()), 'searched': 'Program Files'}
             print(f"Filesystem detection found: {list(filesystem_detected.keys())}")
         except Exception as e:
+            detection_results['filesystem'] = {'found': [], 'error': str(e)}
             print(f"Filesystem detection failed: {e}")
         
-        # 3. Steam games detection (if Steam was found)
+        # 3. Enhanced detection for missing programs
+        try:
+            enhanced_detected = self.detect_enhanced_methods()
+            for key, value in enhanced_detected.items():
+                if key not in detected:
+                    detected[key] = value
+            detection_results['enhanced'] = {'found': list(enhanced_detected.keys()), 'searched': 'Desktop, Downloads, Processes'}
+            print(f"Enhanced detection found: {list(enhanced_detected.keys())}")
+        except Exception as e:
+            detection_results['enhanced'] = {'found': [], 'error': str(e)}
+            print(f"Enhanced detection failed: {e}")
+        
+        # 4. Steam games detection (if Steam was found)
         steam_path = detected.get('steam')
         if steam_path:
             try:
@@ -915,14 +932,185 @@ class PoELauncher:
                 for key, value in steam_games.items():
                     if key not in detected:
                         detected[key] = value
+                detection_results['steam'] = {'found': list(steam_games.keys()), 'searched': 'Steam Libraries'}
                 print(f"Steam games detection found: {list(steam_games.keys())}")
             except Exception as e:
+                detection_results['steam'] = {'found': [], 'error': str(e)}
                 print(f"Steam games detection failed: {e}")
         
         # Apply detected paths to UI (force mode allows overwriting)
         self.apply_detected_paths_force(detected)
         
+        # Show detailed results to user
+        self.show_detection_results(detected, detection_results)
+        
         return detected
+    
+    def detect_enhanced_methods(self):
+        """Enhanced detection methods for hard-to-find programs"""
+        detected = {}
+        
+        if os.name != 'nt':
+            return detected
+        
+        # 1. Process-based detection (if programs are running)
+        try:
+            for proc in psutil.process_iter(['name', 'exe']):
+                try:
+                    proc_name = proc.info['name']
+                    if proc_name and proc.info['exe']:
+                        exe_path = proc.info['exe']
+                        
+                        # Check for Chaos Recipe Enhancer variations
+                        if any(name in proc_name.lower() for name in ['chaosrecipe', 'chaos-recipe', 'cre']):
+                            if 'chaos_recipe' not in detected and os.path.exists(exe_path):
+                                detected['chaos_recipe'] = exe_path
+                                print(f"Found running Chaos Recipe Enhancer: {exe_path}")
+                        
+                        # Check for other programs
+                        if 'awakened' in proc_name.lower() and 'poe' in proc_name.lower():
+                            if 'awakened_trade' not in detected and os.path.exists(exe_path):
+                                detected['awakened_trade'] = exe_path
+                                print(f"Found running Awakened PoE Trade: {exe_path}")
+                        
+                        if 'lurker' in proc_name.lower():
+                            if 'poe_lurker' not in detected and os.path.exists(exe_path):
+                                detected['poe_lurker'] = exe_path
+                                print(f"Found running PoE Lurker: {exe_path}")
+                                
+                except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+                    continue
+        except Exception as e:
+            print(f"Process detection failed: {e}")
+        
+        # 2. Desktop and Downloads folder detection
+        try:
+            search_folders = [
+                os.path.expanduser('~\\Desktop'),
+                os.path.expanduser('~\\Downloads'),
+                os.path.expanduser('~\\Documents'),
+                os.path.expandvars('%PUBLIC%\\Desktop')
+            ]
+            
+            for folder in search_folders:
+                if os.path.exists(folder):
+                    # Search for executables and shortcuts
+                    for item in os.listdir(folder):
+                        item_path = os.path.join(folder, item)
+                        
+                        # Direct executable files
+                        if item.lower().endswith('.exe'):
+                            if 'chaosrecipe' in item.lower() and 'chaos_recipe' not in detected:
+                                detected['chaos_recipe'] = item_path
+                                print(f"Found CRE in {folder}: {item_path}")
+                            elif 'awakened' in item.lower() and 'poe' in item.lower() and 'awakened_trade' not in detected:
+                                detected['awakened_trade'] = item_path
+                            elif 'lurker' in item.lower() and 'poe_lurker' not in detected:
+                                detected['poe_lurker'] = item_path
+                        
+                        # Search inside subfolders (one level deep)
+                        elif os.path.isdir(item_path):
+                            try:
+                                for subitem in os.listdir(item_path):
+                                    if subitem.lower().endswith('.exe'):
+                                        subitem_path = os.path.join(item_path, subitem)
+                                        if 'chaosrecipe' in subitem.lower() and 'chaos_recipe' not in detected:
+                                            detected['chaos_recipe'] = subitem_path
+                                            print(f"Found CRE in subfolder: {subitem_path}")
+                            except (OSError, PermissionError):
+                                continue
+                                
+        except Exception as e:
+            print(f"Folder detection failed: {e}")
+        
+        # 3. Alternative executable names for CRE
+        if 'chaos_recipe' not in detected:
+            alternative_names = [
+                'ChaosRecipeEnhancer.exe',
+                'Chaos Recipe Enhancer.exe', 
+                'CRE.exe',
+                'chaos-recipe-enhancer.exe'
+            ]
+            
+            drives = self.get_all_drives()
+            for drive in drives:
+                for alt_name in alternative_names:
+                    # Check common portable app locations
+                    portable_locations = [
+                        'PortableApps',
+                        'Tools',
+                        'Games',
+                        'Utilities'
+                    ]
+                    
+                    for location in portable_locations:
+                        search_path = os.path.join(drive, location, alt_name)
+                        if os.path.exists(search_path):
+                            detected['chaos_recipe'] = search_path
+                            print(f"Found CRE in portable location: {search_path}")
+                            break
+                    
+                    if 'chaos_recipe' in detected:
+                        break
+                if 'chaos_recipe' in detected:
+                    break
+        
+        return detected
+    
+    def show_detection_results(self, detected, detection_results):
+        """Show detailed detection results to user"""
+        total_found = len(detected)
+        
+        # Create detailed message
+        message_lines = [f"Auto-detection completed: {total_found} programs found\n"]
+        
+        program_names = {
+            'steam': 'Steam',
+            'poe_standalone': 'Path of Exile (Standalone)',
+            'poe_steam': 'Path of Exile (Steam)',
+            'awakened_trade': 'Awakened PoE Trade',
+            'poe_lurker': 'PoE Lurker',
+            'chaos_recipe': 'Chaos Recipe Enhancer'
+        }
+        
+        # Show what was found
+        if detected:
+            message_lines.append("✅ FOUND:")
+            for key, path in detected.items():
+                program_name = program_names.get(key, key)
+                short_path = path if len(path) < 50 else f"...{path[-47:]}"
+                message_lines.append(f"  • {program_name}: {short_path}")
+            message_lines.append("")
+        
+        # Show what wasn't found with suggestions
+        all_programs = set(program_names.keys())
+        not_found = all_programs - set(detected.keys())
+        
+        if not_found:
+            message_lines.append("❌ NOT FOUND:")
+            for key in not_found:
+                program_name = program_names.get(key, key)
+                message_lines.append(f"  • {program_name}")
+            
+            message_lines.append("\n💡 SUGGESTIONS FOR MISSING PROGRAMS:")
+            message_lines.append("  • Manually browse to select the executable")
+            message_lines.append("  • Make sure programs are installed")
+            message_lines.append("  • Try running the programs first, then auto-detect")
+            message_lines.append("  • Check Downloads folder for portable versions")
+        
+        # Show search details
+        message_lines.append(f"\n🔍 SEARCHED LOCATIONS:")
+        for method, result in detection_results.items():
+            if 'error' in result:
+                message_lines.append(f"  • {result.get('searched', method)}: Failed")
+            else:
+                found_count = len(result.get('found', []))
+                message_lines.append(f"  • {result.get('searched', method)}: {found_count} found")
+        
+        detailed_message = "\n".join(message_lines)
+        
+        # Show in dialog
+        messagebox.showinfo("Auto-Detection Results", detailed_message)
     
     def normalize_path(self, path):
         """Normalize path to use consistent Windows backslashes"""
