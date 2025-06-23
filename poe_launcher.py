@@ -304,20 +304,23 @@ class PoELauncher:
         frame = tk.Frame(parent, bg=self.colors['bg_light'])
         frame.pack(fill='x', pady=(0, 10))
         
-        label = tk.Label(frame, text=self.t(label_key), width=12,
+        # Label without fixed width - let it size naturally
+        label = tk.Label(frame, text=self.t(label_key),
                         fg=self.colors['text'], bg=self.colors['bg_light'])
-        label.pack(side='left')
+        label.pack(side='left', padx=(0, 10))
         
-        entry = tk.Entry(frame, textvariable=path_var,
-                        bg=self.colors['bg'], fg=self.colors['text'],
-                        insertbackground=self.colors['text'])
-        entry.pack(side='left', fill='x', expand=True, padx=(5, 5))
-        
+        # Browse button first (fixed size)
         browse_btn = tk.Button(frame, text=self.t('browse'),
                               command=browse_command,
                               bg=self.colors['button_bg'], fg='white',
                               relief='flat', padx=15)
         browse_btn.pack(side='right')
+        
+        # Entry fills remaining space
+        entry = tk.Entry(frame, textvariable=path_var,
+                        bg=self.colors['bg'], fg=self.colors['text'],
+                        insertbackground=self.colors['text'])
+        entry.pack(side='left', fill='x', expand=True, padx=(0, 5))
         
         return frame
     
@@ -325,11 +328,11 @@ class PoELauncher:
         frame = tk.Frame(parent, bg=self.colors['bg_light'])
         frame.pack(fill='x', pady=(0, 10))
         
-        # Label with info icon
+        # Label with info icon - no fixed width
         label_frame = tk.Frame(frame, bg=self.colors['bg_light'])
-        label_frame.pack(side='left')
+        label_frame.pack(side='left', padx=(0, 10))
         
-        label = tk.Label(label_frame, text=self.t(label_key), width=12,
+        label = tk.Label(label_frame, text=self.t(label_key),
                         fg=self.colors['text'], bg=self.colors['bg_light'])
         label.pack(side='left')
         
@@ -340,16 +343,18 @@ class PoELauncher:
                             relief='flat', pady=0)
         info_btn.pack(side='left', padx=(2, 0))
         
-        entry = tk.Entry(frame, textvariable=path_var,
-                        bg=self.colors['bg'], fg=self.colors['text'],
-                        insertbackground=self.colors['text'])
-        entry.pack(side='left', fill='x', expand=True, padx=(5, 5))
-        
+        # Browse button first (fixed size)
         browse_btn = tk.Button(frame, text=self.t('browse'),
                               command=browse_command,
                               bg=self.colors['button_bg'], fg='white',
                               relief='flat', padx=15)
         browse_btn.pack(side='right')
+        
+        # Entry fills remaining space
+        entry = tk.Entry(frame, textvariable=path_var,
+                        bg=self.colors['bg'], fg=self.colors['text'],
+                        insertbackground=self.colors['text'])
+        entry.pack(side='left', fill='x', expand=True, padx=(0, 5))
         
         # Store references for language updates
         if not hasattr(self, 'path_labels'):
@@ -371,28 +376,36 @@ class PoELauncher:
         frame = tk.Frame(parent, bg=self.colors['bg_light'])
         frame.pack(fill='x', pady=(0, 10))
         
+        # Checkbox without fixed width - let it size naturally
         check = tk.Checkbutton(frame, text=self.t(label_key), variable=check_var,
-                              width=15, anchor='w', state='disabled',
+                              anchor='w', state='disabled',
                               fg=self.colors['text'], bg=self.colors['bg_light'],
                               selectcolor=self.colors['bg'], activebackground=self.colors['bg_light'])
-        check.pack(side='left')
+        check.pack(side='left', padx=(0, 10))
         
         # Store checkbox reference for later enabling/disabling
         self.checkboxes[label_key] = check
         
-        entry = tk.Entry(frame, textvariable=path_var,
-                        bg=self.colors['bg'], fg=self.colors['text'],
-                        insertbackground=self.colors['text'])
-        entry.pack(side='left', fill='x', expand=True, padx=(5, 5))
-        
-        # Bind path change to validation
-        path_var.trace('w', lambda *args: self.validate_path(label_key, path_var))
-        
+        # Browse button first (fixed size)
         browse_btn = tk.Button(frame, text=self.t('browse'),
                               command=lambda: self.browse_and_validate(path_var, browse_command, label_key),
                               bg=self.colors['button_bg'], fg='white',
                               relief='flat', padx=15)
         browse_btn.pack(side='right')
+        
+        # Entry fills remaining space
+        entry = tk.Entry(frame, textvariable=path_var,
+                        bg=self.colors['bg'], fg=self.colors['text'],
+                        insertbackground=self.colors['text'])
+        entry.pack(side='left', fill='x', expand=True, padx=(0, 5))
+        
+        # Bind path change to validation
+        path_var.trace('w', lambda *args: self.validate_path(label_key, path_var))
+        
+        # Store browse button reference for language updates
+        if not hasattr(self, 'browse_buttons'):
+            self.browse_buttons = {}
+        self.browse_buttons[label_key] = browse_btn
     
     def update_ui(self):
         """Update UI visibility based on game version selection"""
