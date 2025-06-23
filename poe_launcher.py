@@ -78,6 +78,9 @@ class PoELauncher:
         # Store checkbox references for enabling/disabling
         self.checkboxes = {}
         
+        # Store detected Steam PoE path
+        self.steam_poe_path = ""
+        
     def load_translations(self):
         self.translations = {
             'en': {
@@ -428,6 +431,9 @@ class PoELauncher:
                 
                 self.language.set(config.get('language', self.language.get()))
                 
+                # Load detected Steam PoE path if available
+                self.steam_poe_path = config.get('steam_poe_path', '')
+                
                 # Validate all paths after loading
                 self.validate_all_paths()
                 
@@ -688,7 +694,7 @@ class PoELauncher:
     
     def apply_detected_paths(self, detected):
         """Apply detected paths to the UI variables"""
-        # Steam path
+        # Steam path - keep for ensuring Steam is running
         if 'steam' in detected:
             self.steam_path.set(detected['steam'])
         
@@ -696,10 +702,12 @@ class PoELauncher:
         if 'poe_standalone' in detected:
             self.standalone_path.set(detected['poe_standalone'])
         
-        # If we found Steam PoE but not standalone, and no current standalone path
-        if 'poe_steam' in detected and not self.standalone_path.get():
-            # Don't overwrite standalone path, but we could show this info
-            pass
+        # Steam PoE path - use for Steam version game path
+        if 'poe_steam' in detected:
+            # If we found Steam PoE, set it as the Steam path for game launching
+            # We'll modify the launch logic to use this directly
+            self.steam_poe_path = detected['poe_steam']
+            print(f"Steam PoE found at: {self.steam_poe_path}")
         
         # Companion programs
         if 'awakened_trade' in detected:
@@ -781,7 +789,8 @@ class PoELauncher:
                 'start_chaos_recipe': self.start_chaos_recipe.get(),
                 'open_filterblade': self.open_filterblade.get(),
                 'open_trade_site': self.open_trade_site.get(),
-                'language': self.language.get()
+                'language': self.language.get(),
+                'steam_poe_path': getattr(self, 'steam_poe_path', '')
             }
             
             with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -855,9 +864,16 @@ class PoELauncher:
         
         if version == 'steam':
             steam_path = self.steam_path.get()
-            if not os.path.exists(steam_path):
-                errors.append(self.t('file_not_found').format("Steam", steam_path))
-            else:
+            
+            # Check if we have a detected Steam PoE executable
+            if hasattr(self, 'steam_poe_path') and self.steam_poe_path and os.path.exists(self.steam_poe_path):
+                # Launch PoE directly from Steam library
+                if self.run_program(self.steam_poe_path):
+                    launched.append("Path of Exile (Steam)")
+                else:
+                    errors.append(self.t('file_not_found').format("Path of Exile", self.steam_poe_path))
+            elif steam_path and os.path.exists(steam_path):
+                # Fallback to Steam URL protocol launch
                 # Check if Steam is running
                 if not self.is_process_running("steam.exe"):
                     self.run_program(steam_path)
@@ -866,6 +882,8 @@ class PoELauncher:
                 
                 if self.launch_steam_game(steam_path, "238960"):
                     launched.append("Path of Exile (Steam)")
+            else:
+                errors.append(self.t('file_not_found').format("Steam", steam_path))
         else:
             standalone_path = self.standalone_path.get()
             if self.run_program(standalone_path):
